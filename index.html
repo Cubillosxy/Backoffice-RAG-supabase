@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Backoffice Admin</title>
+    <meta name="description" content="Dashboard premium de administración RAG y almacenamiento vectorial en Supabase">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="glow-orb" id="orb-1"></div>
+    <div class="glow-orb" id="orb-2"></div>
+
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <i class="ph-bold ph-brain"></i>
+                </div>
+                <h2>RAG Admin</h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" onclick="switchTab('dashboard')">
+                    <i class="ph ph-squares-four"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#ingestion" class="nav-item" onclick="switchTab('ingestion')">
+                    <i class="ph ph-upload-simple"></i>
+                    <span>Ingesta</span>
+                </a>
+                <a href="#search" class="nav-item" onclick="switchTab('search')">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <span>Búsqueda</span>
+                </a>
+                <a href="#categories-tab" class="nav-item" onclick="switchTab('categories-tab')">
+                    <i class="ph ph-tag"></i>
+                    <span>Categorías</span>
+                </a>
+            </nav>
+            
+            <div class="status-footer">
+                <div class="status-indicator online"></div>
+                <div class="status-text">
+                    <p class="status-title">API Server</p>
+                    <p class="status-subtitle" id="api-status">Conectando...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="content-header">
+                <div class="header-info">
+                    <h1 id="page-title">Panel de Control</h1>
+                    <p id="page-subtitle">Gestiona la base de conocimientos vectorial en Supabase</p>
+                </div>
+                <div class="user-profile">
+                    <div class="profile-info">
+                        <span class="role">Gemma-300m Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Tab (Home View) -->
+            <div id="tab-dashboard" class="tab-pane active">
+                <div class="grid-layout">
+                    <!-- Quick Stats -->
+                    <div class="card stat-card glow-on-hover">
+                        <div class="stat-icon category-bg"><i class="ph ph-tag"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Categorías</span>
+                            <h3 id="stat-categories-count">0</h3>
+                        </div>
+                    </div>
+                    <div class="card stat-card glow-on-hover">
+                        <div class="stat-icon doc-bg"><i class="ph ph-files"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Documentos</span>
+                            <h3 id="stat-docs-count">0 Chunks</h3>
+                        </div>
+                    </div>
+                    <div class="card stat-card glow-on-hover">
+                        <div class="stat-icon model-bg"><i class="ph ph-cpu"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Embedding Dim</span>
+                            <h3>768d</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-sections">
+                    <!-- Categories overview -->
+                    <div class="card categories-summary">
+                        <div class="card-header">
+                            <h3>Categorías Activas</h3>
+                            <button class="btn btn-secondary btn-sm" onclick="switchTab('categories-tab')">Ver todas</button>
+                        </div>
+                        <div class="categories-list-compact" id="categories-grid-compact">
+                            <!-- Categorías cargadas dinámicamente -->
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingestion Tab -->
+            <div id="tab-ingestion" class="tab-pane">
+                <div class="split-view">
+                    <!-- Form Area -->
+                    <div class="card flow-card">
+                        <h3>Cargar Información</h3>
+                        <p class="subtitle">Añade nuevos archivos o texto libre a tu base vectorial de Supabase</p>
+                        
+                        <form id="ingest-form" class="form-container">
+                            <div class="form-group">
+                                <label for="ingest-category">Categoría <span class="required">*</span></label>
+                                <div class="select-wrapper">
+                                    <select id="ingest-category" required>
+                                        <option value="" disabled selected>Selecciona una categoría...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Tipo de Entrada</label>
+                                <div class="tabs-sub">
+                                    <button type="button" class="tab-sub active" onclick="switchIngestType('file')">Subir Archivo</button>
+                                    <button type="button" class="tab-sub" onclick="switchIngestType('raw')">Texto Plano</button>
+                                </div>
+                            </div>
+
+                            <!-- File Upload Section -->
+                            <div id="input-type-file" class="ingest-input-section active">
+                                <div class="drag-drop-zone" id="drop-zone">
+                                    <i class="ph ph-cloud-arrow-up icon-upload"></i>
+                                    <p class="drag-title">Arrastra tus archivos aquí o haz clic para buscar</p>
+                                    <p class="drag-subtitle">Soporta PDF, MD y TXT (Máx. 10MB)</p>
+                                    <input type="file" id="file-input" accept=".pdf,.md,.txt" style="display: none;">
+                                    <div class="selected-file-badge" id="selected-file" style="display: none;">
+                                        <i class="ph ph-file-text"></i>
+                                        <span id="selected-file-name">filename.pdf</span>
+                                        <button type="button" class="btn-remove-file" onclick="clearFileSelection()"><i class="ph ph-x"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Raw Text Section -->
+                            <div id="input-type-raw" class="ingest-input-section">
+                                <div class="form-group">
+                                    <label for="raw-text">Contenido de Texto</label>
+                                    <textarea id="raw-text" rows="8" placeholder="Escribe o pega aquí el contenido de texto que deseas vectorizar e indexar..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Metadata Section -->
+                            <div class="form-group">
+                                <label for="metadata-input">Metadatos Opcionales (Formato JSON)</label>
+                                <textarea id="metadata-input" rows="3" class="code-font" placeholder='{ "url": "https://mi-portafolio.com/proyectos", "autor": "Juan" }'></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="btn-ingest">
+                                <i class="ph ph-paper-plane-tilt"></i>
+                                <span>Indexar en Supabase</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Side Info Panel -->
+                    <div class="card info-card">
+                        <h3>Deduplicación Automática</h3>
+                        <div class="dedup-steps">
+                            <div class="step-item">
+                                <div class="step-number"><i class="ph ph-hash"></i></div>
+                                <div class="step-content">
+                                    <h4>Hashing MD5</h4>
+                                    <p>Cada archivo subido genera una firma digital única en base a su contenido binario.</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number"><i class="ph ph-hand-palm"></i></div>
+                                <div class="step-content">
+                                    <h4>Evitar Duplicados</h4>
+                                    <p>Si subes el mismo archivo idéntico, el sistema detendrá la ejecución para no duplicar vectores.</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number"><i class="ph ph-arrows-clockwise"></i></div>
+                                <div class="step-content">
+                                    <h4>Sobreescritura Limpia</h4>
+                                    <p>Si actualizas la información de tu CV o archivo, el sistema borrará automáticamente los chunks vectoriales anteriores para evitar sesgos en el RAG.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Tab -->
+            <div id="tab-search" class="tab-pane">
+                <div class="card search-card">
+                    <h3>Búsqueda Semántica Vectorial</h3>
+                    <p class="subtitle">Busca por el significado conceptual de tu consulta usando similitud de coseno en pgvector</p>
+                    
+                    <form id="search-form" class="search-form-layout">
+                        <div class="search-input-wrapper">
+                            <i class="ph ph-magnifying-glass search-icon"></i>
+                            <input type="text" id="search-query" placeholder="Escribe tu consulta (Ej: qué experiencia tengo desarrollando con Node.js?)" required>
+                        </div>
+                        <div class="search-settings">
+                            <div class="select-wrapper flex-1">
+                                <select id="search-category">
+                                    <option value="">Buscar en todas las categorías</option>
+                                </select>
+                            </div>
+                            <div class="flex-row">
+                                <label for="search-threshold">Umbral:</label>
+                                <input type="number" id="search-threshold" min="0.1" max="0.9" step="0.05" value="0.4" class="threshold-input">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Buscar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="search-results-section">
+                    <div class="results-header" id="results-count-label" style="display: none;">
+                        <h3>Resultados de la Búsqueda</h3>
+                    </div>
+                    
+                    <div class="results-list" id="search-results-list">
+                        <div class="search-placeholder">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <p>Realiza una búsqueda para visualizar los fragmentos vectoriales coincidentes y sus puntuaciones de similitud.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Admin Tab -->
+            <div id="tab-categories-tab" class="tab-pane">
+                <div class="split-view">
+                    <!-- Create Card -->
+                    <div class="card categories-creator">
+                        <h3>Crear Nueva Categoría</h3>
+                        <p class="subtitle">Define un nuevo catálogo para estructurar tu conocimiento</p>
+                        
+                        <form id="category-form" class="form-container">
+                            <div class="form-group">
+                                <label for="category-name">Nombre de Categoría <span class="required">*</span></label>
+                                <input type="text" id="category-name" placeholder="Ej: educacion, proyectos, faqs" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="category-desc">Descripción</label>
+                                <textarea id="category-desc" rows="4" placeholder="Describe brevemente qué tipo de información contendrá esta categoría..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Crear Categoría</button>
+                        </form>
+                    </div>
+
+                    <!-- Categories list -->
+                    <div class="card flex-1">
+                        <h3>Listado Completo</h3>
+                        <div class="categories-list-detailed" id="categories-grid-detailed">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Toast System -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="index.js"></script>
+</body>
+</html>
