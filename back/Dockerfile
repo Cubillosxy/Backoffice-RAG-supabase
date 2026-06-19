@@ -11,5 +11,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Comando para ejecutar la app con reload activo
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Comando para ejecutar la app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -14,31 +14,31 @@ export const DashboardView = ({ categories, loadingCategories, showToast }) => {
         const data = await api.getStats();
         setStats(data);
       } catch (err) {
-        showToast('Error al cargar estadísticas del servidor.', 'error');
+        showToast('Error loading statistics from server.', 'error');
       } finally {
         setLoadingStats(false);
       }
     };
     fetchStats();
-  }, []);
+  }, [showToast]);
 
   return (
     <div>
       <div className="dashboard-grid">
         <StatCard
-          label="Categorías"
+          label="Categories"
           value={loadingStats ? '...' : stats.categories_count}
           icon="🏷"
           variant="categories"
         />
         <StatCard
-          label="Documentos Chunks"
+          label="Document Chunks"
           value={loadingStats ? '...' : `${stats.chunks_count} Chunks`}
           icon="🗎"
           variant="chunks"
         />
         <StatCard
-          label="Dimensión de Embedding"
+          label="Embedding Dimension"
           value="768d"
           icon="⚙"
           variant="dimension"
@@ -46,28 +46,15 @@ export const DashboardView = ({ categories, loadingCategories, showToast }) => {
       </div>
 
       <div className="dashboard-sections">
-        <Card title="Categorías Activas" icon="🏷">
+        <Card title="Active Categories" icon="🏷">
           {loadingCategories ? (
             <Spinner size="small" />
           ) : categories.length === 0 ? (
-            <p className="page-subtitle">No hay categorías creadas aún. Dirígete a la sección de Categorías para crear una.</p>
+            <p className="page-subtitle">No categories created yet. Go to the Categories tab to create one.</p>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <div className="category-tags-wrap">
               {categories.map((cat) => (
-                <span
-                  key={cat.id}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    padding: '0.4rem 0.8rem',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    color: '#2dd4bf',
-                  }}
-                >
+                <span key={cat.id} className="category-tag-badge">
                   🏷 {cat.name}
                 </span>
               ))}

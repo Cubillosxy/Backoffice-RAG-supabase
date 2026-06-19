@@ -12,6 +12,7 @@ export const SearchView = ({ categories, showToast }) => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [searchStep, setSearchStep] = useState(0); // 0 = idle, 1 = embedding, 2 = matching
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -19,44 +20,63 @@ export const SearchView = ({ categories, showToast }) => {
 
     setLoading(true);
     setSearched(true);
+    setResults([]);
+    setSearchStep(1);
+
+    const start = Date.now();
 
     try {
       const searchResults = await api.searchSemantic(query, categoryName, threshold);
+      
+      // Minimum duration for step 1 (embedding generation display)
+      const elapsed1 = Date.now() - start;
+      if (elapsed1 < 700) {
+        await new Promise(resolve => setTimeout(resolve, 700 - elapsed1));
+      }
+
+      setSearchStep(2);
+      const startStep2 = Date.now();
+
+      // Minimum duration for step 2 (matching process display)
+      const elapsed2 = Date.now() - startStep2;
+      if (elapsed2 < 800) {
+        await new Promise(resolve => setTimeout(resolve, 800 - elapsed2));
+      }
+
       setResults(searchResults || []);
     } catch (err) {
-      showToast('Error al conectar con la base de datos vectorial.', 'error');
+      showToast('Error connecting to the vector database.', 'error');
     } finally {
+      setSearchStep(0);
       setLoading(false);
     }
   };
 
   return (
     <div>
-      <Card title="Búsqueda Semántica Vectorial" icon="🔍">
+      <Card title="Vector Semantic Search" icon="🔍">
         <p className="page-subtitle" style={{ marginBottom: '1.5rem' }}>
-          Busca por el significado conceptual de tu consulta usando similitud de coseno en pgvector
+          Search by the conceptual meaning of your query using cosine similarity in pgvector
         </p>
 
         <form onSubmit={handleSearch}>
-          <div className="form-group" style={{ position: 'relative' }}>
+          <div className="form-group search-input-wrap">
             <input
               type="text"
               className="form-control"
               style={{ paddingLeft: '2.5rem' }}
-              placeholder="Escribe tu consulta (Ej: qué experiencia tengo desarrollando con Node.js?)"
+              placeholder="Type your query (e.g. what experience do I have developing with Node.js?)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               required
             />
-            <span style={{ position: 'absolute', left: '1rem', top: '0.75rem', color: 'var(--text-muted)' }}>
-              🔍
-            </span>
+            <span className="search-input-icon">🔍</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div style={{ flex: '1 1 200px' }}>
+          <div className="search-controls">
+            <div className="filter-group">
               <label htmlFor="search-category" className="stat-label" style={{ display: 'block', marginBottom: '0.25rem' }}>
-                Filtrar por Categoría
+                Filter by Category
               </label>
               <select
                 id="search-category"
@@ -64,7 +84,7 @@ export const SearchView = ({ categories, showToast }) => {
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
               >
-                <option value="">Buscar en todas las categorías</option>
+                <option value="">Search all categories</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.name}>
                     {cat.name}
@@ -73,13 +93,12 @@ export const SearchView = ({ categories, showToast }) => {
               </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1.25rem' }}>
-              <label htmlFor="search-threshold" className="stat-label">Umbral:</label>
+            <div className="threshold-group">
+              <label htmlFor="search-threshold" className="stat-label">Threshold:</label>
               <input
                 id="search-threshold"
                 type="number"
-                className="form-control"
-                style={{ width: '80px', textAlign: 'center' }}
+                className="form-control threshold-input"
                 min="0.1"
                 max="0.9"
                 step="0.05"
@@ -97,9 +116,9 @@ export const SearchView = ({ categories, showToast }) => {
               />
             </div>
 
-            <div style={{ marginTop: '1.25rem' }}>
+            <div className="action-group">
               <Button type="submit" variant="primary" loading={loading} disabled={loading}>
-                Buscar
+                Search
               </Button>
             </div>
           </div>
@@ -107,12 +126,32 @@ export const SearchView = ({ categories, showToast }) => {
       </Card>
 
       {searched && (
-        <Card title="Resultados de la Búsqueda" icon="📋" className="search-results-section" style={{ marginTop: '2rem' }}>
+        <Card title="Search Results" icon="📋" className="search-results-section" style={{ marginTop: '2rem' }}>
           {loading ? (
-            <Spinner />
+            <div className="progress-tracker" style={{ margin: '1rem 0' }}>
+              <div className={`progress-step-item ${searchStep === 1 ? 'active' : searchStep > 1 ? 'completed' : 'pending'}`}>
+                <div className={`progress-step-icon ${searchStep === 1 ? 'active' : searchStep > 1 ? 'completed' : 'pending'}`}>
+                  {searchStep > 1 ? '✓' : '1'}
+                </div>
+                <div className="progress-step-details">
+                  <h4>Generating Query Embedding</h4>
+                  <p>Running sentence-transformers locally (Google Gemma-300m model)</p>
+                </div>
+              </div>
+
+              <div className={`progress-step-item ${searchStep === 2 ? 'active' : searchStep > 2 ? 'completed' : 'pending'}`}>
+                <div className={`progress-step-icon ${searchStep === 2 ? 'active' : searchStep > 2 ? 'completed' : 'pending'}`}>
+                  {searchStep > 2 ? '✓' : '2'}
+                </div>
+                <div className="progress-step-details">
+                  <h4>Executing Vector Similarity Match</h4>
+                  <p>Comparing embeddings in Supabase pgvector using threshold {threshold}</p>
+                </div>
+              </div>
+            </div>
           ) : results.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--text-secondary))' }}>
-              <p>No se encontraron resultados que superen la similitud mínima de {threshold}.</p>
+            <div className="search-empty">
+              <p>No results found that exceed the minimum similarity of {threshold}.</p>
             </div>
           ) : (
             <div className="search-results">

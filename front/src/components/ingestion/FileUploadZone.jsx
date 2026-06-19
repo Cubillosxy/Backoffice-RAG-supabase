@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 
-export const FileUploadZone = ({ selectedFile, onFileSelect, onClearFile }) => {
+export const FileUploadZone = ({ selectedFile, onFileSelect, onClearFile, showToast }) => {
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -33,7 +33,9 @@ export const FileUploadZone = ({ selectedFile, onFileSelect, onClearFile }) => {
   const validateAndSelectFile = (file) => {
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['pdf', 'md', 'txt'].includes(ext)) {
-      alert('Formato de archivo no soportado. Sube PDF, MD o TXT.');
+      if (showToast) {
+        showToast('File format not supported. Upload PDF, MD or TXT.', 'error');
+      }
       return;
     }
     onFileSelect(file);
@@ -63,8 +65,8 @@ export const FileUploadZone = ({ selectedFile, onFileSelect, onClearFile }) => {
       {!selectedFile ? (
         <>
           <span className="dropzone-icon" style={{ fontSize: '2.5rem' }}>☁</span>
-          <p style={{ fontWeight: '500' }}>Arrastra tus archivos aquí o haz clic para buscar</p>
-          <p className="page-subtitle" style={{ fontSize: '0.85rem' }}>Soporta PDF, MD y TXT (Máx. 10MB)</p>
+          <p style={{ fontWeight: '500' }}>Drag and drop your files here or click to browse</p>
+          <p className="page-subtitle" style={{ fontSize: '0.85rem' }}>Supports PDF, MD and TXT (Max. 10MB)</p>
         </>
       ) : (
         <div className="file-badge" onClick={(e) => e.stopPropagation()}>

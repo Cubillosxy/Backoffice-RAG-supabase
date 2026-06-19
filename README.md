@@ -1,47 +1,96 @@
-# Backoffice RAG Supabase - Backend
+# Backoffice RAG Supabase
 
-Este proyecto está estructurado como un monorepo básico. Contiene un backend en Python utilizando **FastAPI** ejecutándose dentro de contenedores Docker para facilitar el desarrollo local sin necesidad de instalar Python en la máquina host.
+This project is a monorepo containing a Retrieval-Augmented Generation (RAG) system with a **FastAPI** backend, a **React (Vite)** frontend, and a **Supabase (pgvector)** database.
 
-## Requisitos Previos
+---
 
-- [Docker](https://www.docker.com/) instalado en tu sistema.
-- Docker Compose v2+.
+## Architecture Overview
 
-## Estructura del Proyecto
+The codebase is split into two primary components:
 
+*   **`/back` (Backend)**: A FastAPI application hosting modular API endpoints, document parsing (`pypdf` for PDFs, native text loaders for TXT/MD), and RAG business logic. It runs local CPU vector embeddings using `sentence-transformers` with the `google/embedding-gemma-300m` model.
+*   **`/front` (Frontend)**: A modern React application created with Vite, styled with custom CSS variables (featuring glassmorphic dark-mode aesthetics), and packaged into a multi-stage Docker build served via Nginx.
+
+---
+
+## Required Environment Variables
+
+### Backend Configuration (`back/.env`)
+
+Create a `.env` file in the `back/` folder (you can copy `back/.env.example` as a template):
+
+```bash
+# Server Port (Optional)
+PORT=8000
+
+# Supabase Credentials (Required)
+SUPABASE_URL=your-supabase-project-url
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# Logging Configuration (Optional - DEBUG, INFO, WARNING, ERROR)
+LOG_LEVEL=INFO
 ```
-.
-├── .agents/                   # Personalizaciones y skills de Antigravity
-│   └── skills/
-│       └── edwin-criteria/    # Skill con criterios senior y review (Ponytail)
-├── back/                      # Código fuente del backend (FastAPI)
-│   ├── .env.example           # Plantilla de variables de entorno
-│   ├── Dockerfile             # Dockerfile de desarrollo
-│   ├── main.py                # Entrada de la API
-│   └── requirements.txt       # Dependencias de Python fijadas
-├── docker-compose.yml         # Orquestación de contenedores
-└── README.md                  # Este archivo
+
+### Frontend Configuration
+
+The React build dynamically references the backend URL via:
+- `VITE_API_URL`: Backend API base address. (Defaults to `http://localhost:8000` if not set).
+
+---
+
+## Main Flows
+
+1.  **Document Ingestion & Deduplication**:
+    *   The frontend uploads files or plain text with optional JSON metadata.
+    *   The backend calculates an MD5 hash of the file. If an identical file exists in the category, ingestion is skipped. If a modified version is uploaded, old vector chunks are clean-deleted and overwritten.
+    *   The text is split into chunks, embedded using Gemma-300m, and saved into Supabase `document_chunks` with `language` and `metadata` properties.
+    *   A progress stepper displays active steps, culminating in an **Ingestion Summary** card detailing the registered/skipped file.
+
+2.  **Semantic Search**:
+    *   A query string is submitted from the search panel.
+    *   The backend embeds the query and matches it against database chunks using a cosine similarity threshold RPC (`match_document_chunks`).
+
+3.  **Metrics & Categories CRUD**:
+    *   The dashboard dynamically queries metrics (number of active categories and chunks).
+    *   Users can manage document organization folders through category creation forms.
+
+---
+
+## How to Run & Access
+
+### 1. Build and Run Container Services
+
+Run the following command from the root directory to build and spin up the Docker containers in detached mode:
+
+```bash
+docker compose up --build -d
 ```
 
-## Configuración y Ejecución
+### 2. Services & Docs URLs
 
-1. **Configurar Variables de Entorno**
-   Crea una copia de la plantilla `.env.example` en la carpeta `back/` con el nombre `.env`:
-   ```bash
-   cp back/.env.example back/.env
-   ```
-   Ajusta las variables de entorno dentro del archivo `back/.env` si es necesario.
+Once the containers are running, you can access the application at the following endpoints:
 
-2. **Iniciar el Contenedor**
-   En el directorio raíz del proyecto, ejecuta el siguiente comando para construir y arrancar el contenedor:
-   ```bash
-   docker compose up --build
-   ```
+*   **Frontend Dashboard**: [http://localhost:8080](http://localhost:8080)
+*   **Backend API Root**: [http://localhost:8000](http://localhost:8000)
+*   **API Interactive Documentation (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+*   **API Static Schema Documentation (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
-3. **Verificar el Estado**
-   Una vez que el contenedor esté corriendo, la API estará disponible en:
-   - Base URL: [http://localhost:8000](http://localhost:8000)
-   - Documentación Interactiva (Swagger UI): [http://localhost:8000/docs](http://localhost:8000/docs)
+---
 
-4. **Desarrollo en Vivo (Hot Reload)**
-   La carpeta `back/` está montada como un volumen dentro del contenedor docker. Cualquier cambio que realices en el código local (`main.py`, etc.) se reflejará y recargará automáticamente.
+## Running Tests
+
+### Backend Unit Tests
+
+Run the pytest suite inside the running backend container:
+
+```bash
+docker compose exec back pytest tests/
+```
+
+### Frontend Tests
+
+Currently, the frontend scaffold is minimal and does not include a testing framework. If test suites (e.g. Vitest / React Testing Library) are added later, you can run them via:
+
+```bash
+cd front && npm run test
+```

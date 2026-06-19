@@ -54,7 +54,8 @@ class RAGManager:
         category_name: str,
         content: str,
         metadata: Optional[Dict[str, Any]] = None,
-        document_id: Optional[str] = None
+        document_id: Optional[str] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """Orchestrates document ingestion: checks/creates category, embeds content, and saves to DB."""
         if not content.strip():
@@ -79,7 +80,8 @@ class RAGManager:
             content=content,
             embedding=embedding,
             metadata=metadata,
-            document_id=document_id
+            document_id=document_id,
+            language=language
         )
 
     def ingest_file(
@@ -87,7 +89,8 @@ class RAGManager:
         category_name: str,
         filename: str,
         file_bytes: bytes,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """Ingests a file (PDF, MD, TXT) with MD5 deduplication and chunk-based embedding."""
         # 1. Calcular hash MD5 del archivo
@@ -105,10 +108,17 @@ class RAGManager:
         if existing_doc:
             if existing_doc["file_hash"] == file_hash:
                 logger.info(f"File '{filename}' already ingested with same hash. Skipping.")
+                # Count current chunks in DB for this document
+                chunks_resp = self.db.client.table("document_chunks").select("id", count="exact").eq("document_id", existing_doc["id"]).execute()
+                chunks_count = chunks_resp.count or 0
                 return {
                     "status": "skipped",
                     "message": "File already exists and content is identical.",
-                    "document_id": existing_doc["id"]
+                    "document_id": existing_doc["id"],
+                    "filename": filename,
+                    "created_at": existing_doc.get("created_at"),
+                    "category_name": category_name,
+                    "chunks_count": chunks_count
                 }
             else:
                 logger.info(f"File '{filename}' exists but hash changed. Deleting old document for overwrite.")
@@ -139,7 +149,7 @@ class RAGManager:
         chunks = self._chunk_text(text_content)
         logger.info(f"Generated {len(chunks)} chunks from document.")
 
-        # 7. Ingestar cada chunk (con sus embeddings)
+        # 7. Ingestar cada chunk (embedding + guardar)
         ingested_chunks = []
         for i, chunk in enumerate(chunks):
             chunk_metadata = (metadata or {}).copy()
@@ -149,11 +159,15 @@ class RAGManager:
                 "total_chunks": len(chunks)
             })
             
-            chunk_res = self.ingest_document(
-                category_name=category_name,
+            logger.info(f"Embedding and storing chunk {i+1}/{len(chunks)}...")
+            embedding = self.embedder.get_embedding(chunk)
+            chunk_res = self.db.insert_document_chunk(
+                category_id=category_id,
                 content=chunk,
+                embedding=embedding,
                 metadata=chunk_metadata,
-                document_id=document_id
+                document_id=document_id,
+                language=language
             )
             ingested_chunks.append(chunk_res["id"])
 
@@ -162,7 +176,10 @@ class RAGManager:
             "message": f"Successfully ingested {len(chunks)} chunks.",
             "document_id": document_id,
             "chunks_count": len(chunks),
-            "chunks": ingested_chunks
+            "chunks": ingested_chunks,
+            "filename": filename,
+            "created_at": doc_record.get("created_at"),
+            "category_name": category_name
         }
 
     def search_similar_documents(

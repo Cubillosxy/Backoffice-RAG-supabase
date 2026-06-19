@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 class SupabaseService:
     def __init__(self):
         self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_anon_key = os.getenv("SUPABASE_ANON_KEY")
         self.supabase_service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         
         # Fallback to SUPABASE_KEY for backwards compatibility
@@ -16,10 +15,8 @@ class SupabaseService:
         
         # Determine which keys to use
         self.service_key_to_use = self.supabase_service_key or self.supabase_key
-        self.anon_key_to_use = self.supabase_anon_key or self.supabase_key
 
         self._client: Optional[Client] = None
-        self._anon_client: Optional[Client] = None
 
         if not self.supabase_url:
             logger.warning("SUPABASE_URL is not configured.")
@@ -35,16 +32,6 @@ class SupabaseService:
         else:
             logger.warning("SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) is not configured.")
 
-        # Initialize anon client
-        if self.anon_key_to_use:
-            try:
-                self._anon_client = create_client(self.supabase_url, self.anon_key_to_use)
-                logger.info("Supabase anon client initialized successfully.")
-            except Exception as e:
-                logger.error(f"Error initializing Supabase anon client: {e}")
-        else:
-            logger.warning("SUPABASE_ANON_KEY (or SUPABASE_KEY) is not configured.")
-
     @property
     def client(self) -> Client:
         """Returns the service role client (main client for backend operations)."""
@@ -53,15 +40,6 @@ class SupabaseService:
                 "Supabase service client is not initialized. Please verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your environment."
             )
         return self._client
-
-    @property
-    def anon_client(self) -> Client:
-        """Returns the anon/public client."""
-        if self._anon_client is None:
-            raise ValueError(
-                "Supabase anon client is not initialized. Please verify SUPABASE_URL and SUPABASE_ANON_KEY in your environment."
-            )
-        return self._anon_client
 
     # --- Categories CRUD ---
 
@@ -78,10 +56,6 @@ class SupabaseService:
         response = self.client.table("categories").select("*").order("name").execute()
         return response.data or []
 
-    def get_category_by_id(self, category_id: str) -> Optional[Dict[str, Any]]:
-        """Fetches a category by its ID."""
-        response = self.client.table("categories").select("*").eq("id", category_id).execute()
-        return response.data[0] if response.data else None
 
     def get_category_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Fetches a category by its name."""
@@ -119,14 +93,16 @@ class SupabaseService:
         content: str,
         embedding: List[float],
         metadata: Optional[Dict[str, Any]] = None,
-        document_id: Optional[str] = None
+        document_id: Optional[str] = None,
+        language: str = "en"
     ) -> Dict[str, Any]:
         """Inserts a new document chunk with its vector embedding."""
         data = {
             "category_id": category_id,
             "content": content,
             "embedding": embedding,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
+            "language": language
         }
         if document_id:
             data["document_id"] = document_id
@@ -136,10 +112,6 @@ class SupabaseService:
             raise RuntimeError("Failed to insert document chunk or empty response.")
         return response.data[0]
 
-    def list_document_chunks(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Lists document chunks without embeddings (standard fetch)."""
-        response = self.client.table("document_chunks").select("id, category_id, content, metadata, created_at").limit(limit).execute()
-        return response.data or []
 
     # --- Vector Similarity Search ---
 

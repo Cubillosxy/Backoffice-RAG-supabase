@@ -1,8 +1,8 @@
 import React from 'react';
 
-export const Card = ({ children, className = '', title, icon }) => {
+export const Card = ({ children, className = '', title, icon, style }) => {
   return (
-    <div className={`card ${className}`}>
+    <div className={`card ${className}`} style={style}>
       {title && (
         <h3 className="card-title">
           {icon && <span className="card-icon-slot">{icon}</span>}

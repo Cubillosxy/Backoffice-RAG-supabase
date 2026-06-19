@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ToastOutlet } from './components/ui/Toast';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { IngestionView } from './components/ingestion/IngestionView';
 import { SearchView } from './components/search/SearchView';
 import { CategoriesView } from './components/categories/CategoriesView';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { api } from './services/api';
 import './styles/main.css';
 
@@ -16,39 +17,41 @@ function App() {
   const [apiStatus, setApiStatus] = useState('connecting');
 
   // Toast helper
-  const showToast = (message, type = 'info') => {
-    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+  const showToast = useCallback((message, type = 'info') => {
+    const id = typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
 
     // Auto remove
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
-  };
+  }, []);
 
   // Check backend server status
-  const checkAPIStatus = async () => {
+  const checkAPIStatus = useCallback(async () => {
     const online = await api.checkHealth();
     if (online) {
       setApiStatus('online');
     } else {
       setApiStatus('offline');
-      showToast('No se pudo conectar con el servidor API local.', 'error');
+      showToast('Could not connect to the local API server.', 'error');
     }
-  };
+  }, [showToast]);
 
   // Fetch categories list
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
     try {
       const data = await api.getCategories();
       setCategories(data || []);
     } catch (err) {
-      showToast('Error al cargar las categorías desde la API.', 'error');
+      showToast('Error loading categories from the API.', 'error');
     } finally {
       setLoadingCategories(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     checkAPIStatus();
@@ -62,7 +65,7 @@ function App() {
     }, 10000);
 
     return () => clearInterval(healthInterval);
-  }, []);
+  }, [checkAPIStatus, loadCategories]);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -115,23 +118,23 @@ function App() {
     switch (activeTab) {
       case 'dashboard':
         return {
-          title: 'Panel de Control',
-          subtitle: 'Gestiona la base de conocimientos vectorial en Supabase'
+          title: 'Control Dashboard',
+          subtitle: 'Manage the vector knowledge base in Supabase'
         };
       case 'ingestion':
         return {
-          title: 'Ingesta de Conocimiento',
-          subtitle: 'Indexa nuevos textos, archivos PDF o Markdown'
+          title: 'Knowledge Ingestion',
+          subtitle: 'Index new text, PDF or Markdown files'
         };
       case 'search':
         return {
-          title: 'Búsqueda Semántica',
-          subtitle: 'Consulta tus documentos utilizando vectores pgvector'
+          title: 'Semantic Search',
+          subtitle: 'Query your documents using pgvector vectors'
         };
       case 'categories':
         return {
-          title: 'Categorías de Información',
-          subtitle: 'Estructura los tipos de contenidos del RAG'
+          title: 'Information Categories',
+          subtitle: 'Structure the content types for the RAG'
         };
       default:
         return { title: 'Backoffice', subtitle: '' };
@@ -154,24 +157,16 @@ function App() {
             <h1 className="page-title">{headerInfo.title}</h1>
             <p className="page-subtitle">{headerInfo.subtitle}</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span
-              style={{
-                fontSize: '0.85rem',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                padding: '0.4rem 0.8rem',
-                borderRadius: '8px',
-                color: '#2dd4bf',
-                fontWeight: '600',
-              }}
-            >
-              🚀 Gemma-300m Active
-            </span>
+          <div>
+            <span className="model-badge">🚀 Gemma-300m Active</span>
           </div>
         </header>
 
-        {renderView()}
+        {headerInfo && (
+          <ErrorBoundary>
+            {renderView()}
+          </ErrorBoundary>
+        )}
 
         <ToastOutlet toasts={toasts} />
       </main>

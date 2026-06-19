@@ -1,11 +1,13 @@
 import json
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
+import logging
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from app.services.supabase_service import supabase_service
 from app.services.embeddings import embeddings_service
 from app.services.rag_manager import rag_manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 # --- Schemas ---
@@ -18,6 +20,7 @@ class DocumentIngest(BaseModel):
     category_name: str = Field(..., examples=["projects"], description="Category for the document")
     content: str = Field(..., examples=["This is the backoffice RAG setup guide"], description="Text content to embed and save")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Metadata dictionary")
+    language: Optional[str] = Field("en", examples=["en"], description="Document language (e.g. 'en', 'es')")
 
 class SemanticSearchRequest(BaseModel):
     query: str = Field(..., examples=["how to configure docker compose"], description="Search query in plain text")
@@ -43,6 +46,7 @@ def create_category(payload: CategoryCreate):
     except HTTPException as he:
         raise he
     except Exception as e:
+        logger.exception("Error creating category")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/categories", summary="List all categories")
@@ -59,7 +63,8 @@ def ingest_document(payload: DocumentIngest):
         result = rag_manager.ingest_document(
             category_name=payload.category_name,
             content=payload.content,
-            metadata=payload.metadata
+            metadata=payload.metadata,
+            language=payload.language or "en"
         )
         return {"status": "success", "message": "Document chunk ingested successfully", "data": {
             "id": result["id"],
@@ -68,6 +73,7 @@ def ingest_document(payload: DocumentIngest):
             "metadata": result["metadata"]
         }}
     except Exception as e:
+        logger.exception("Error ingesting document chunk")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/documents/search", summary="Perform semantic search using embedding comparison")
@@ -81,6 +87,7 @@ def semantic_search(payload: SemanticSearchRequest):
         )
         return {"status": "success", "results": results}
     except Exception as e:
+        logger.exception("Error performing semantic search")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/embeddings/generate", summary="Generate vector embeddings for a given text")
@@ -94,13 +101,15 @@ def generate_raw_embeddings(payload: EmbedRequest):
             "embedding": embedding
         }
     except Exception as e:
+        logger.exception("Error generating raw embeddings")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/documents/upload", summary="Upload, parse, chunk, embed and store a file (PDF, MD, TXT)")
 async def upload_document(
     category_name: str = Form(..., examples=["projects"], description="Category for the document"),
     file: UploadFile = File(...),
-    metadata: Optional[str] = Form(None, description="Optional JSON string metadata")
+    metadata: Optional[str] = Form(None, description="Optional JSON string metadata"),
+    language: str = Form("en", description="Document language (e.g. 'en', 'es')")
 ):
     try:
         # Parsear metadatos JSON opcionales
@@ -113,14 +122,23 @@ async def upload_document(
 
         file_bytes = await file.read()
         
+        # Validar tamaño máximo de archivo (10MB)
+        MAX_FILE_SIZE = 10 * 1024 * 1024
+        if len(file_bytes) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File size exceeds the maximum allowed limit of 10MB.")
+        
         result = rag_manager.ingest_file(
             category_name=category_name,
             filename=file.filename,
             file_bytes=file_bytes,
-            metadata=meta_dict
+            metadata=meta_dict,
+            language=language
         )
         return result
+    except HTTPException as he:
+        raise he
     except Exception as e:
+        logger.exception("Error uploading and processing document")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/stats", summary="Get dashboard statistics")
@@ -129,4 +147,5 @@ def get_stats():
         stats = supabase_service.get_stats()
         return {"status": "success", "data": stats}
     except Exception as e:
+        logger.exception("Error getting stats")
         raise HTTPException(status_code=500, detail=str(e))

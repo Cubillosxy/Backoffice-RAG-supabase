@@ -3,9 +3,9 @@ import React from 'react';
 export const Sidebar = ({ activeTab, onTabChange, apiStatus }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
-    { id: 'ingestion', label: 'Ingesta', icon: '⏏' },
-    { id: 'search', label: 'Búsqueda', icon: '⌕' },
-    { id: 'categories', label: 'Categorías', icon: '🏷' }
+    { id: 'ingestion', label: 'Ingestion', icon: '⏏' },
+    { id: 'search', label: 'Search', icon: '⌕' },
+    { id: 'categories', label: 'Categories', icon: '🏷' }
   ];
 
   return (
@@ -33,7 +33,7 @@ export const Sidebar = ({ activeTab, onTabChange, apiStatus }) => {
         <div className="status-info">
           <p className="status-label">API Server</p>
           <p className="status-val">
-            {apiStatus === 'online' ? 'Online' : apiStatus === 'offline' ? 'Offline' : 'Conectando...'}
+            {apiStatus === 'online' ? 'Online' : apiStatus === 'offline' ? 'Offline' : 'Connecting...'}
           </p>
         </div>
       </div>

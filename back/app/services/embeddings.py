@@ -50,12 +50,5 @@ class EmbeddingService:
         # Convertir a lista de floats estándar de Python
         return embedding.tolist()
 
-    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Generates embeddings for multiple text strings."""
-        if not texts:
-            return []
-        embeddings = self.model.encode(texts, convert_to_numpy=True)
-        return [emb.tolist() for emb in embeddings]
-
 # Instancia singleton para reuso en toda la aplicación
 embeddings_service = EmbeddingService()

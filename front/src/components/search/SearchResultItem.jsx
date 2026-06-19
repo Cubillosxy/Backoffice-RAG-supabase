@@ -7,18 +7,7 @@ export const SearchResultItem = ({ result }) => {
   return (
     <div className="search-result-card">
       <div className="search-result-header">
-        <span 
-          style={{
-            fontSize: '0.75rem',
-            background: 'rgba(255, 255, 255, 0.05)',
-            padding: '0.25rem 0.5rem',
-            borderRadius: '4px',
-            color: '#818cf8',
-            fontWeight: '600'
-          }}
-        >
-          🏷 Chunks
-        </span>
+        <span className="result-tag-label">🏷 Chunks</span>
         <span className={`similarity-badge ${scoreClass}`}>
           {simPercentage}% Match
         </span>

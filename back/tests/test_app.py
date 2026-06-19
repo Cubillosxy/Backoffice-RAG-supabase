@@ -86,7 +86,10 @@ def test_upload_document():
             "message": "Successfully ingested 2 chunks.",
             "document_id": "test-doc-uuid",
             "chunks_count": 2,
-            "chunks": ["chunk1", "chunk2"]
+            "chunks": ["chunk1", "chunk2"],
+            "filename": "test_resume.pdf",
+            "created_at": "2026-06-19T09:00:00Z",
+            "category_name": "experience"
         }
         
         # Simular carga multipart
@@ -99,3 +102,18 @@ def test_upload_document():
         assert json_data["status"] == "success"
         assert json_data["document_id"] == "test-doc-uuid"
         assert json_data["chunks_count"] == 2
+        assert json_data["filename"] == "test_resume.pdf"
+        assert json_data["category_name"] == "experience"
+
+def test_get_stats():
+    with patch("app.api.endpoints.supabase_service") as mock_supa:
+        mock_supa.get_stats.return_value = {
+            "categories_count": 3,
+            "chunks_count": 42
+        }
+        response = client.get("/api/stats")
+        assert response.status_code == 200
+        json_data = response.json()
+        assert json_data["status"] == "success"
+        assert json_data["data"]["categories_count"] == 3
+        assert json_data["data"]["chunks_count"] == 42

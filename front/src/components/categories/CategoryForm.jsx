@@ -15,12 +15,12 @@ export const CategoryForm = ({ onCategoryCreated, showToast }) => {
 
     try {
       await api.createCategory(name.trim(), description.trim());
-      showToast(`Categoría '${name}' creada exitosamente.`, 'success');
+      showToast(`Category '${name}' successfully created.`, 'success');
       setName('');
       setDescription('');
       onCategoryCreated();
     } catch (err) {
-      showToast(err.message || 'Error al crear la categoría.', 'error');
+      showToast(err.message || 'Error creating the category.', 'error');
     } finally {
       setLoading(false);
     }
@@ -29,12 +29,12 @@ export const CategoryForm = ({ onCategoryCreated, showToast }) => {
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-group">
-        <label htmlFor="category-name">Nombre de la Categoría *</label>
+        <label htmlFor="category-name">Category Name *</label>
         <input
           id="category-name"
           type="text"
           className="form-control"
-          placeholder="Ej: educacion, proyectos, faqs"
+          placeholder="e.g. education, projects, faqs"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -42,19 +42,19 @@ export const CategoryForm = ({ onCategoryCreated, showToast }) => {
       </div>
 
       <div className="form-group">
-        <label htmlFor="category-desc">Descripción</label>
+        <label htmlFor="category-desc">Description</label>
         <textarea
           id="category-desc"
           className="form-control"
           rows="4"
-          placeholder="Describe brevemente qué tipo de información contendrá esta categoría..."
+          placeholder="Briefly describe what kind of information this category will contain..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>
 
       <Button type="submit" variant="primary" loading={loading} disabled={loading}>
-        Crear Categoría
+        Create Category
       </Button>
     </form>
   );
