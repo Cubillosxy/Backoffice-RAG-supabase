@@ -11,22 +11,22 @@ router = APIRouter(prefix="/api")
 # --- Schemas ---
 
 class CategoryCreate(BaseModel):
-    name: str = Field(..., example="projects", description="Uniq name of the category")
-    description: Optional[str] = Field(None, example="Category to store project-related info")
+    name: str = Field(..., examples=["projects"], description="Uniq name of the category")
+    description: Optional[str] = Field(None, examples=["Category to store project-related info"], description="Category description")
 
 class DocumentIngest(BaseModel):
-    category_name: str = Field(..., example="projects", description="Category for the document")
-    content: str = Field(..., example="This is the backoffice RAG setup guide", description="Text content to embed and save")
+    category_name: str = Field(..., examples=["projects"], description="Category for the document")
+    content: str = Field(..., examples=["This is the backoffice RAG setup guide"], description="Text content to embed and save")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Metadata dictionary")
 
 class SemanticSearchRequest(BaseModel):
-    query: str = Field(..., example="how to configure docker compose", description="Search query in plain text")
-    category_name: Optional[str] = Field(None, example="projects", description="Filter search by category name")
+    query: str = Field(..., examples=["how to configure docker compose"], description="Search query in plain text")
+    category_name: Optional[str] = Field(None, examples=["projects"], description="Filter search by category name")
     match_threshold: float = Field(0.4, ge=0.0, le=1.0, description="Minimum similarity threshold")
     match_count: int = Field(5, ge=1, le=50, description="Number of results to return")
 
 class EmbedRequest(BaseModel):
-    text: str = Field(..., example="Hello World")
+    text: str = Field(..., examples=["Hello World"])
 
 # --- Routes ---
 
@@ -98,7 +98,7 @@ def generate_raw_embeddings(payload: EmbedRequest):
 
 @router.post("/documents/upload", summary="Upload, parse, chunk, embed and store a file (PDF, MD, TXT)")
 async def upload_document(
-    category_name: str = Form(..., example="projects", description="Category for the document"),
+    category_name: str = Form(..., examples=["projects"], description="Category for the document"),
     file: UploadFile = File(...),
     metadata: Optional[str] = Form(None, description="Optional JSON string metadata")
 ):
@@ -120,5 +120,13 @@ async def upload_document(
             metadata=meta_dict
         )
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/stats", summary="Get dashboard statistics")
+def get_stats():
+    try:
+        stats = supabase_service.get_stats()
+        return {"status": "success", "data": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

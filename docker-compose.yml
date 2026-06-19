@@ -12,3 +12,12 @@ services:
       - ./back/.env
     environment:
       - PYTHONUNBUFFERED=1
+
+  front:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: backoffice_rag_frontend
+    ports:
+      - "8080:80"
+
